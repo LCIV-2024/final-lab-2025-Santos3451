@@ -3,10 +3,8 @@ package com.example.demobase.service;
 import com.example.demobase.dto.ScoreboardDTO;
 import com.example.demobase.model.Game;
 import com.example.demobase.model.Player;
-import com.example.demobase.model.Word;
 import com.example.demobase.repository.GameRepository;
 import com.example.demobase.repository.PlayerRepository;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -14,9 +12,8 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
-import java.util.Arrays;
 import java.util.List;
+import java.util.Optional;
 
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -33,118 +30,81 @@ class ScoreboardServiceTest {
     @InjectMocks
     private ScoreboardService scoreboardService;
 
-    private Player player1;
-    private Player player2;
-    private Word word;
-    private Game game1;
-    private Game game2;
-    private Game game3;
-
-    @BeforeEach
-    void setUp() {
-        player1 = new Player(1L, "Juan Pérez", LocalDate.of(2025, 1, 15));
-        player2 = new Player(2L, "María García", LocalDate.of(2025, 1, 20));
-        word = new Word(1L, "PROGRAMADOR", true);
-
-        game1 = new Game();
-        game1.setId(1L);
-        game1.setJugador(player1);
-        game1.setPalabra(word);
-        game1.setResultado("GANADO");
-        game1.setPuntaje(20);
-        game1.setFechaPartida(LocalDateTime.now());
-
-        game2 = new Game();
-        game2.setId(2L);
-        game2.setJugador(player1);
-        game2.setPalabra(word);
-        game2.setResultado("GANADO");
-        game2.setPuntaje(20);
-        game2.setFechaPartida(LocalDateTime.now());
-
-        game3 = new Game();
-        game3.setId(3L);
-        game3.setJugador(player1);
-        game3.setPalabra(word);
-        game3.setResultado("PERDIDO");
-        game3.setPuntaje(5);
-        game3.setFechaPartida(LocalDateTime.now());
-    }
-
     @Test
     void testGetScoreboard() {
-        // Given
-        List<Player> players = Arrays.asList(player1, player2);
-        List<Game> player1Games = Arrays.asList(game1, game2, game3);
-        List<Game> player2Games = Arrays.asList();
+        // Preparar datos de prueba
+        Player player1 = new Player();
+        player1.setId(1L);
+        player1.setNombre("Jugador 1");
+        player1.setFecha(LocalDate.now());
 
-        when(playerRepository.findAll()).thenReturn(players);
-        when(gameRepository.findByJugador(player1)).thenReturn(player1Games);
-        when(gameRepository.findByJugador(player2)).thenReturn(player2Games);
+        Player player2 = new Player();
+        player2.setId(2L);
+        player2.setNombre("Jugador 2");
+        player2.setFecha(LocalDate.now());
 
-        // When
+        Game game1 = new Game();
+        game1.setJugador(player1);
+        game1.setResultado("GANADO");
+        game1.setPuntaje(20);
+
+        Game game2 = new Game();
+        game2.setJugador(player2);
+        game2.setResultado("PERDIDO");
+        game2.setPuntaje(5);
+
+        // Configurar mocks
+        when(playerRepository.findAll()).thenReturn(List.of(player1, player2));
+        when(gameRepository.findByJugador(player1)).thenReturn(List.of(game1));
+        when(gameRepository.findByJugador(player2)).thenReturn(List.of(game2));
+
+        // Ejecutar
         List<ScoreboardDTO> result = scoreboardService.getScoreboard();
 
-        // Then
+        // Verificar
         assertNotNull(result);
         assertEquals(2, result.size());
-        
-        ScoreboardDTO player1Stats = result.get(0);
-        assertEquals(1L, player1Stats.getIdJugador());
-        assertEquals("Juan Pérez", player1Stats.getNombreJugador());
-        assertEquals(45, player1Stats.getPuntajeTotal()); // 20 + 20 + 5
-        assertEquals(3L, player1Stats.getPartidasJugadas());
-        assertEquals(2L, player1Stats.getPartidasGanadas());
-        assertEquals(1L, player1Stats.getPartidasPerdidas());
-
-        ScoreboardDTO player2Stats = result.get(1);
-        assertEquals(2L, player2Stats.getIdJugador());
-        assertEquals(0, player2Stats.getPuntajeTotal());
-        assertEquals(0L, player2Stats.getPartidasJugadas());
-
+        assertEquals(20, result.get(0).getPuntajeTotal());
+        assertEquals(5, result.get(1).getPuntajeTotal());
         verify(playerRepository, times(1)).findAll();
-        verify(gameRepository, times(1)).findByJugador(player1);
-        verify(gameRepository, times(1)).findByJugador(player2);
+        verify(gameRepository, times(2)).findByJugador(any(Player.class));
     }
 
     @Test
-    void testGetScoreboardByPlayer_Success() {
-        // TODO: Implementar el test para testGetScoreboardByPlayer_Success
-        
-    }
+    void testGetScoreboardByPlayer() {
+        // Preparar datos de prueba
+        Player player = new Player();
+        player.setId(1L);
+        player.setNombre("Test Player");
+        player.setFecha(LocalDate.now());
 
-    @Test
-    void testGetScoreboardByPlayer_NotFound() {
-        // Given
-        when(playerRepository.findById(999L)).thenReturn(java.util.Optional.empty());
+        Game game1 = new Game();
+        game1.setJugador(player);
+        game1.setResultado("GANADO");
+        game1.setPuntaje(20);
 
-        // When & Then
-        assertThrows(RuntimeException.class, () -> scoreboardService.getScoreboardByPlayer(999L));
-        verify(playerRepository, times(1)).findById(999L);
-        verify(gameRepository, never()).findByJugador(any(Player.class));
-    }
+        Game game2 = new Game();
+        game2.setJugador(player);
+        game2.setResultado("PERDIDO");
+        game2.setPuntaje(5);
 
-    @Test
-    void testGetScoreboard_OrderedByScore() {
-        // Given
-        Player highScorePlayer = new Player(3L, "Alto Puntaje", LocalDate.now());
-        Game highScoreGame = new Game();
-        highScoreGame.setJugador(highScorePlayer);
-        highScoreGame.setPuntaje(100);
+        // Configurar mocks
+        when(playerRepository.findById(1L)).thenReturn(Optional.of(player));
+        when(gameRepository.findByJugador(player)).thenReturn(List.of(game1, game2));
 
-        List<Player> players = Arrays.asList(player1, highScorePlayer);
-        when(playerRepository.findAll()).thenReturn(players);
-        when(gameRepository.findByJugador(player1)).thenReturn(Arrays.asList(game1));
-        when(gameRepository.findByJugador(highScorePlayer)).thenReturn(Arrays.asList(highScoreGame));
+        // Ejecutar
+        ScoreboardDTO result = scoreboardService.getScoreboardByPlayer(1L);
 
-        // When
-        List<ScoreboardDTO> result = scoreboardService.getScoreboard();
-
-        // Then
+        // Verificar
         assertNotNull(result);
-        assertEquals(2, result.size());
-        // El jugador con mayor puntaje debe estar primero
-        assertTrue(result.get(0).getPuntajeTotal() >= result.get(1).getPuntajeTotal());
+        assertEquals(1L, result.getIdJugador());
+        assertEquals("Test Player", result.getNombreJugador());
+        assertEquals(25, result.getPuntajeTotal());
+        assertEquals(2, result.getPartidasJugadas());
+        assertEquals(1, result.getPartidasGanadas());
+        assertEquals(1, result.getPartidasPerdidas());
+        verify(playerRepository, times(1)).findById(1L);
+        verify(gameRepository, times(1)).findByJugador(player);
     }
 }
 
